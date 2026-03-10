@@ -1,8 +1,10 @@
 import os
 import logging
+import requests
 from dotenv import load_dotenv
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from report_service import load_country, analyze_country, format_report
 
 # ==============================
 # Загрузка переменных окружения
@@ -10,6 +12,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+API_URL = "http://localhost:8000"
 
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден в .env")
@@ -83,7 +86,8 @@ def help_handler(message):
         "/capabilities — что умею\n"
         "/faq — частые вопросы\n"
         "/ping — проверка связи\n"
-        "/welcome <город> — приветственный пакет"
+        "/welcome <country> — приветственный пакет \n"
+        "/report <country> — отчет о стране\n"
     )
     bot.send_message(message.chat.id, text)
 
@@ -128,26 +132,67 @@ def faq_handler(message):
 def ping_handler(message):
     bot.send_message(message.chat.id, "🏓 Pong! Бот работает.")
 
+@bot.message_handler(commands=['report'])
+def report(message):
+
+    try:
+
+        args = message.text.split()
+
+        if len(args) < 2:
+            bot.send_message(message.chat.id, "Использование: /report country")
+            return
+
+        country = args[1]
+
+        data = load_country(country)
+
+        if not data:
+            bot.send_message(message.chat.id, "Ошибка получения данных.")
+            return
+
+        metrics = analyze_country(data)
+
+        report = format_report(data, metrics)
+
+        bot.send_message(message.chat.id, report)
+
+    except Exception:
+        bot.send_message(message.chat.id, "Ошибка формирования отчёта.")
+
 
 @bot.message_handler(commands=["welcome"])
 def welcome_handler(message):
+
     parts = message.text.split(maxsplit=1)
+
     if len(parts) < 2:
-        bot.send_message(message.chat.id, "Укажите город: /welcome рим")
+        bot.send_message(message.chat.id, "Укажите страну: /welcome germany")
         return
 
-    city = parts[1].capitalize()
+    country = parts[1]
 
-    text = (
-        f"🎒 Welcome Pack — {city}\n\n"
-        "🚨 Экстренные номера: 112\n"
-        "🚇 Транспорт из аэропорта: уточните заранее\n"
-        "📜 Местные правила: уважайте культурные нормы\n"
-        "🗺 Карта метро: сохраните офлайн заранее"
-        + DISCLAIMER
-    )
+    try:
+        response = requests.get(f"{API_URL}/country/{country}")
 
-    bot.send_message(message.chat.id, text)
+        if response.status_code != 200:
+            bot.send_message(message.chat.id, "Не удалось получить данные.")
+            return
+
+        data = response.json()
+
+        text = (
+            f"🌍 Страна: {data['name']}\n"
+            f"🏛 Столица: {data['capital']}\n"
+            f"🌎 Регион: {data['region']}\n"
+            f"👥 Население: {data['population']}\n"
+            f"🏳 Флаг: {data['flag']}"
+        )
+
+        bot.send_message(message.chat.id, text)
+
+    except Exception:
+        bot.send_message(message.chat.id, "Ошибка подключения к серверу.")
 
 # ==============================
 # Кнопки меню
