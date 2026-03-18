@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 from report_service import load_country, analyze_country, format_report
+from llm import llm_complete
 
 # ==============================
 # Загрузка переменных окружения
@@ -45,6 +46,18 @@ DISCLAIMER = (
     "на официальных источниках."
 )
 
+SYSTEM_PROMPT = """
+Ты — туристический ассистент CityMate.
+
+Отвечай кратко и структурированно.
+
+Формат ответа:
+1. Краткий ответ
+2. Список рекомендаций
+3. (если нужно) предупреждение
+
+Не давай медицинских, юридических или финансовых советов.
+"""
 # ==============================
 # Главное меню
 # ==============================
@@ -74,6 +87,40 @@ def start_handler(message):
         + DISCLAIMER
     )
     bot.send_message(message.chat.id, text, reply_markup=main_menu())
+
+@bot.message_handler(commands=['ask'])
+def ask(message):
+
+    try:
+        args = message.text.split(maxsplit=1)
+
+        if len(args) < 2:
+            bot.send_message(message.chat.id, "Использование: /ask ваш вопрос")
+            return
+
+        user_question = args[1]
+
+        if len(user_question) > 500:
+            bot.send_message(message.chat.id, "Слишком длинный запрос.")
+            return
+
+        prompt = f"Вопрос пользователя: {user_question}"
+
+        response = llm_complete(
+            prompt,
+            SYSTEM_PROMPT,
+            max_tokens=300,
+            temperature=0.7
+        )
+
+        if not response:
+            bot.send_message(message.chat.id, "Сервис временно недоступен.")
+            return
+
+        bot.send_message(message.chat.id, response)
+
+    except Exception:
+        bot.send_message(message.chat.id, "Ошибка обработки запроса.")
 
 
 @bot.message_handler(commands=["help"])
@@ -258,4 +305,5 @@ def fallback_handler(message):
 
 if __name__ == "__main__":
     logging.info("Бот запущен...")
+    bot.remove_webhook()
     bot.infinity_polling()
