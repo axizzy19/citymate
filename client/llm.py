@@ -21,4 +21,16 @@ def llm_complete(prompt, system_prompt, max_tokens=300, temperature=0.7):
 
     except Exception as e:
         print("LLM ERROR:", e)
-        return None
+        return generate_mock_response(prompt)
+
+def generate_mock_response(prompt):
+    return (
+        "📍 Пример ответа (LLM недоступен, так как нет доступных токенов. Используется заглушка)\n\n"
+        "1. Краткий ответ:\n"
+        "Это демонстрационный ответ.\n\n"
+        "2. Рекомендации:\n"
+        "• Проверьте официальные сайты\n"
+        "• Уточните расписание\n"
+        "• Подготовьте документы\n\n"
+        "⚠️ Данные могут быть неточными."
+    )
