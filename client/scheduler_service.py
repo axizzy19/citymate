@@ -2,6 +2,7 @@ import json
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 from llm import llm_complete
+from storage import save_schedule
 
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -68,6 +69,14 @@ def add_job(bot, chat_id, time_str, topic, style):
 
     jobs = load_jobs()
     jobs.append({
+        "id": job.id,
+        "chat_id": chat_id,
+        "time": time_str,
+        "topic": topic,
+        "style": style
+    })
+
+    save_schedule({
         "id": job.id,
         "chat_id": chat_id,
         "time": time_str,

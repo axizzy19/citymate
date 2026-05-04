@@ -10,6 +10,7 @@ from batch_generator import generate_batch, save_to_txt
 from scheduler_service import add_job, get_user_jobs, remove_user_jobs
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
+from storage import save_post, get_posts
 
 # ==============================
 # Загрузка переменных окружения
@@ -32,7 +33,11 @@ user_states = {}
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("bot.log", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
 )
 
 # ==============================
@@ -124,8 +129,10 @@ def ask(message):
             return
 
         bot.send_message(message.chat.id, response)
+        save_post(message.chat.id, response)
 
-    except Exception:
+    except Exception as e:
+        logging.error(f"/ask error: {e}")
         bot.send_message(message.chat.id, "Ошибка обработки запроса.")
 
 
@@ -291,6 +298,22 @@ def batch_handler(message):
 
     except Exception as e:
         bot.send_message(message.chat.id, "Ошибка batch-генерации.")
+
+@bot.message_handler(commands=['history'])
+def history_handler(message):
+
+    posts = get_posts(message.chat.id)
+
+    if not posts:
+        bot.send_message(message.chat.id, "История пуста")
+        return
+
+    text = "📜 Последние сообщения:\n\n"
+
+    for p in posts[-5:]:
+        text += f"{p['text'][:100]}...\n\n"
+
+    bot.send_message(message.chat.id, text)
 
 # ==============================
 # Кнопки меню

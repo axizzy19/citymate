@@ -8,7 +8,7 @@ uvicorn app.main:app --reload
 
 cd client
 python -m venv venv
-.\venv\Scripts\activate
+.\venv\scripts\activate
 pip install -r requirements.txt
 python bot.py
 
